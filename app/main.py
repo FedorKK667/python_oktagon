@@ -1,35 +1,21 @@
-from app.db.db import SessionLocal
-from app.db import crud
+from fastapi import FastAPI
+from app.api import categories, books
+from app.db.db import engine, Base
 
-def main():
-    print("--- ЗАПРОС ДАННЫХ ИЗ ПОДКЛЮЧЕННОЙ ПОСТГРЕС БАЗЫ ---\n")
-    
-    db = SessionLocal()
-    try:
-        categories = crud.get_categories(db)
-        
-        if not categories:
-            print("В базе данных пока нет категорий. Сначала запустите app/init_db.py")
-            return
-            
-        for cat in categories:
-            print(f"Категория: {cat.title} (ID: {cat.id})")
-            print("-" * 40)
-            
-            if not cat.books:
-                print("  В этой категории пока нет книг.")
-            else:
-                for book in cat.books:
-                    print(f"  • Книга: {book.title}")
-                    print(f"    Цена: {book.price} руб.")
-                    print(f"    Описание: {book.description}")
-                    print()
-            print("=" * 40)
-            
-    except Exception as e:
-        print(f"Ошибка при чтении данных: {e}")
-    finally:
-        db.close()
+# Автоматически создаем таблицы при запуске сервера, если их нет
+Base.metadata.create_all(bind=engine)
 
-if __name__ == "__main__":
-    main()
+app = FastAPI(
+    title="Octagon Book Store API",
+    description="Интеграционный модуль работы с книгами и категориями",
+    version="1.0.0"
+)
+
+# Подключаем созданные роутеры
+app.include_router(categories.router)
+app.include_router(books.router)
+
+# Простой эндпоинт для проверки работоспособности сервиса
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {"status": "alive", "database": "connected"}
